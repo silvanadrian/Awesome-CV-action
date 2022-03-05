@@ -7,6 +7,7 @@ main() {
 
   sanitize "${GITHUB_TOKEN}" "GITHUB_TOKEN"
   sanitize "${INPUT_FILE_NAME}" "INPUT_FILE_NAME"
+  sanitize "${INPUT_FILE_NAME2}" "INPUT_FILE_NAME2"
 
   TAG_NAME=v$(date +%m-%d-%Y.%H.%M)
 
@@ -14,6 +15,7 @@ main() {
   INPUT_EXTENSION="tex"
   OUTPUT_EXTENSION="pdf"
   OUTPUT_FILE=${INPUT_FILE_NAME/$INPUT_EXTENSION/$OUTPUT_EXTENSION}
+  OUTPUT_FILE2=${INPUT_FILE_NAME2/$INPUT_EXTENSION/$OUTPUT_EXTENSION}
 
   if ! uses "${INPUT_LATEST_TAG}"; then
     INPUT_LATEST_TAG="true"
@@ -23,11 +25,13 @@ main() {
 
   echo "=====> INPUTS <====="
   echo "FILE_NAME: $INPUT_FILE_NAME"
+  echo "FILE_NAME2: $INPUT_FILE_NAME2"
   echo "GENERATED TAG_NAME: $TAG_NAME"
   echo "GITHUB REPOSITORY: $GITHUB_REPOSITORY"
   echo "INPUT_EXTENSION: $INPUT_EXTENSION"
   echo "OUTPUT_EXTENSION: $OUTPUT_EXTENSION"
   echo "OUTPUT_FILE: $OUTPUT_FILE"
+  echo "OUTPUT_FILE2: $OUTPUT_FILE2"
   echo "=====> / INPUTS <====="
   echo ""
 
@@ -42,12 +46,22 @@ main() {
     fi
   set -e
 
+  set +e
+    echo "==> TRYING TO GENERATE THE DOCUMENT"
+    xelatex -file-line-error -halt-on-error  -interaction=nonstopmode $INPUT_FILE_NAME2
+    if [ ! $? -eq 0 ]; then
+      echo "ERROR : ❌ > THE PDF DOCUMENT CAN'T BE GENERATED‼️"
+      exit 1
+    else
+      echo "✅   $OUTPUT_FILE2 was successfully generated"
+    fi
+  set -e
 
-  createRelease $GITHUB_REPOSITORY $GITHUB_TOKEN $TAG_NAME $OUTPUT_FILE
+  createRelease $GITHUB_REPOSITORY $GITHUB_TOKEN $TAG_NAME $OUTPUT_FILE $OUTPUT_FILE2
 
   if usesBoolean "${INPUT_LATEST_TAG}"; then
     cleanLatest $GITHUB_REPOSITORY $GITHUB_TOKEN
-    createRelease $GITHUB_REPOSITORY $GITHUB_TOKEN "latest" $OUTPUT_FILE
+    createRelease $GITHUB_REPOSITORY $GITHUB_TOKEN "latest" $OUTPUT_FILE $OUTPUT_FILE2
   fi
 
    echo "::set-output name=TAG_NAME::${TAG_NAME}" 
@@ -85,16 +99,23 @@ createRelease() {
   responseHandler "$OUTPUT_RELEASE" 
   RELEASE_ID=$(echo $OUTPUT_RELEASE | jq -r '.id')
 
-  echo "====> UPLOAD ASSET TO RELEASE $RELEASE_ID ($3)"
+  echo "====> UPLOAD ASSETS TO RELEASE $RELEASE_ID ($3)"
   UPLOAD_URL="https://uploads.github.com/repos/$1/releases/$RELEASE_ID/assets?name=$4"
   OUTPUT_UPLOAD=$(curl -sS -X POST --header "authorization: token $2" --header 'content-type: application/pdf' --url $UPLOAD_URL -F "data=@$4")
-  responseHandler "$OUTPUT_UPLOAD" 
+  responseHandler "$OUTPUT_UPLOAD"
+
+  UPLOAD_URL="https://uploads.github.com/repos/$1/releases/$RELEASE_ID/assets?name=$5"
+  OUTPUT_UPLOAD=$(curl -sS -X POST --header "authorization: token $2" --header 'content-type: application/pdf' --url $UPLOAD_URL -F "data=@$5")
+  responseHandler "$OUTPUT_UPLOAD"
+
 
   ASSET_URL="https://github.com/$1/releases/download/$3/$4"
+  ASSET_URL2="https://github.com/$1/releases/download/$3/$5"
 
   ROCKET_EMOJI="🚀"
 
   echo -e "=====> $ROCKET_EMOJI -> Your Document is available at the addres $ASSET_URL"
+  echo -e "=====> $ROCKET_EMOJI -> Your Document is available at the addres $ASSET_URL2"
 }
 
 responseHandler() {

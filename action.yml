@@ -8,6 +8,9 @@ inputs:
   FILE_NAME:
     description: 'The filename of your latex document within your repository (Ex: resume.tex)'
     required: true
+  FILE_NAME2:
+    description: 'The filename of your latex document within your repository (Ex: resume.tex)'
+    required: false
   LATEST_TAG:
     description: 'Define if you want the action to create a latest tag, allowing you to the latest document though a single tag named "latest" (default: true)'
     required: true
